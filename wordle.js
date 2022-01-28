@@ -1,4 +1,14 @@
+import { useState, useEffect } from 'react';
+
 export default function Wordle() {
+  let [history, setHistory] = useState([]);
+  let [currentAttempt, setCurrentAttempt] = useState('');
+
+  useEffect(() => {
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
+
   let wordList = [
     'patio',
     'darts',
@@ -11,8 +21,6 @@ export default function Wordle() {
     'crabs',
   ];
 
-  let history = ['piano', 'horse'];
-  let currentAttempt = 'wat';
   let secret = wordList[0];
 
   let GRAY = '#212121';
@@ -22,15 +30,64 @@ export default function Wordle() {
   let MIDDLEGREY = '#666';
   let BLACK = '#111';
 
+  function onKeyDown(e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      return;
+    }
+
+    handleKey(e.key);
+  }
+
+  function handleKey(key) {
+    if (history.length === 6) {
+      return;
+    }
+
+    let letter = key.toLowerCase();
+    if (letter === 'enter') {
+      if (currentAttempt?.length < 5) {
+        return;
+      }
+
+      if (!wordList.includes(currentAttempt)) {
+        alert('Not in the dictionary');
+        return;
+      }
+
+      setHistory([...history, currentAttempt]);
+      // saveGame();
+
+      if (currentAttempt === secret) {
+        alert('You win!');
+
+        return;
+      }
+
+      setCurrentAttempt('');
+      // pauseInput();
+    } else if (letter === 'backspace') {
+      setCurrentAttempt(currentAttempt.slice(0, currentAttempt.length - 1));
+    } else if (/^[a-z]$/.test(letter)) {
+      if (currentAttempt.length < 5) {
+        setCurrentAttempt(currentAttempt + letter);
+        //animatePress(currentAttempt.length - 1);
+      }
+    }
+
+    if (history.length === 6 && currentAttempt !== secret) {
+      setTimeout(() => alert(secret), 0);
+    }
+  }
+
   return (
     <div id="screen">
       <h1>Wordle</h1>
-      <Grid />
-      <Keyboard />
+      <Grid history={history} currentAttempt={currentAttempt} />
+      <Keyboard onKey={handleKey} />
     </div>
   );
 
-  function Grid() {
+  function Grid({ history, currentAttempt }) {
     let rows = [];
 
     for (let i = 0; i < 6; i++) {
@@ -46,83 +103,12 @@ export default function Wordle() {
     return <div id="grid">{rows}</div>;
   }
 
-  function Keyboard() {
-    return (
-      <div id="keyboard">
-        <KeyboardRow letters="qwertyuiop" isLast={false} />
-        <KeyboardRow letters="asdfghjkl" isLast={false} />
-        <KeyboardRow letters="zxcvbnm" isLast={true} />
-      </div>
-    );
-  }
-
-  function KeyboardRow({ letters, isLast }) {
-    let buttons = [];
-    if (isLast) {
-      buttons.push(
-        <Button key="enter" buttonKey="Enter">
-          Enter
-        </Button>
-      );
-    }
-
-    for (let letter of letters) {
-      buttons.push(
-        <Button key={letter} buttonKey={letter}>
-          {letter}
-        </Button>
-      );
-    }
-
-    if (isLast) {
-      buttons.push(
-        <Button key="backspace" buttonKey="Backspace">
-          BkSpc
-        </Button>
-      );
-    }
-
-    return <div>{buttons}</div>;
-  }
-
-  function Button({ buttonKey, children }) {
-    return (
-      <button
-        style={{
-          backgroundColor: LIGHTGRAY,
-        }}
-        onClick={() => handleKey(buttonKey)}
-      >
-        {children}
-      </button>
-    );
-  }
-
-  function handleKey(key) {
-    console.log(key);
-  }
-
   function Attempt({ attempt, solved }) {
     let cells = [];
     for (let i = 0; i < 5; i++) {
       cells.push(<Cell key={i} attempt={attempt} index={i} solved={solved} />);
     }
     return <div>{cells}</div>;
-  }
-
-  function getBgColor(attempt, i) {
-    let correctLetter = secret[i];
-    let attemptLetter = attempt[i];
-
-    if (!attemptLetter || !attempt.includes(correctLetter)) {
-      return GRAY;
-    }
-
-    if (attemptLetter === correctLetter) {
-      return GREEN;
-    }
-
-    return YELLOW;
   }
 
   function Cell({ attempt, index, solved }) {
@@ -164,5 +150,72 @@ export default function Wordle() {
         </div>
       </div>
     );
+  }
+
+  function Keyboard({ onKey }) {
+    return (
+      <div id="keyboard">
+        <KeyboardRow letters="qwertyuiop" onKey={onKey} isLast={false} />
+        <KeyboardRow letters="asdfghjkl" onKey={onKey} isLast={false} />
+        <KeyboardRow letters="zxcvbnm" onKey={onKey} isLast={true} />
+      </div>
+    );
+  }
+
+  function KeyboardRow({ letters, isLast, onKey }) {
+    let buttons = [];
+    if (isLast) {
+      buttons.push(
+        <Button onKey={onKey} key="enter" buttonKey="Enter">
+          Enter
+        </Button>
+      );
+    }
+
+    for (let letter of letters) {
+      buttons.push(
+        <Button onKey={onKey} key={letter} buttonKey={letter}>
+          {letter}
+        </Button>
+      );
+    }
+
+    if (isLast) {
+      buttons.push(
+        <Button onKey={onKey} key="backspace" buttonKey="Backspace">
+          BkSpc
+        </Button>
+      );
+    }
+
+    return <div>{buttons}</div>;
+  }
+
+  function Button({ buttonKey, children, onKey }) {
+    return (
+      <button
+        style={{
+          backgroundColor: LIGHTGRAY,
+        }}
+        onClick={() => onKey(buttonKey)}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  function getBgColor(attempt, i) {
+    let correctLetter = secret[i];
+    let attemptLetter = attempt[i];
+
+    if (!attemptLetter || !attempt.includes(correctLetter)) {
+      return GRAY;
+    }
+
+    if (attemptLetter === correctLetter) {
+      return GREEN;
+    }
+
+    return YELLOW;
   }
 }
