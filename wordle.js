@@ -1,31 +1,10 @@
-import { useState, useEffect, useContext, useRef } from 'react';
+import { useState, useEffect, useContext, useRef, useMemo } from 'react';
 import { KeyContext } from './context';
 
 export default function Wordle() {
   let [history, setHistory] = useState([]);
   let [currentAttempt, setCurrentAttempt] = useState('');
   let loadedRef = useRef(false);
-
-  useEffect(() => {
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  });
-
-  useEffect(() => {
-    if (loadedRef.current) {
-      return;
-    }
-
-    let savedHistory = loadHistory();
-    if (savedHistory) {
-      setHistory(savedHistory);
-      loadedRef.current = true;
-    }
-  });
-
-  useEffect(() => {
-    saveHistory(history);
-  }, [history]);
 
   let wordList = [
     'patio',
@@ -47,6 +26,40 @@ export default function Wordle() {
   let YELLOW = '#b59f3b';
   let MIDDLEGREY = '#666';
   let BLACK = '#111';
+
+  let bestColors = useMemo(() => {
+    let map = new Map();
+    for (let attempt of history) {
+      for (let i = 0; i < attempt.length; i++) {
+        let color = getBgColor(attempt, i);
+        let key = attempt[i];
+        let bestColor = map.get(key);
+        map.set(key, getBetterColor(color, bestColor));
+      }
+    }
+    return map;
+  }, [history]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
+
+  useEffect(() => {
+    if (loadedRef.current) {
+      return;
+    }
+
+    let savedHistory = loadHistory();
+    if (savedHistory) {
+      setHistory(savedHistory);
+      loadedRef.current = true;
+    }
+  });
+
+  useEffect(() => {
+    saveHistory(history);
+  }, [history]);
 
   function onKeyDown(e) {
     if (e.ctrlKey || e.metaKey || e.altKey) {
@@ -100,7 +113,7 @@ export default function Wordle() {
       <KeyContext.Provider value={handleKey}>
         <h1>Wordle</h1>
         <Grid history={history} currentAttempt={currentAttempt} />
-        <Keyboard />
+        <Keyboard bestColors={bestColors} />
       </KeyContext.Provider>
     </div>
   );
@@ -174,17 +187,25 @@ export default function Wordle() {
     );
   }
 
-  function Keyboard() {
+  function Keyboard({ bestColors }) {
     return (
       <div id="keyboard">
-        <KeyboardRow letters="qwertyuiop" isLast={false} />
-        <KeyboardRow letters="asdfghjkl" isLast={false} />
-        <KeyboardRow letters="zxcvbnm" isLast={true} />
+        <KeyboardRow
+          bestColors={bestColors}
+          letters="qwertyuiop"
+          isLast={false}
+        />
+        <KeyboardRow
+          bestColors={bestColors}
+          letters="asdfghjkl"
+          isLast={false}
+        />
+        <KeyboardRow bestColors={bestColors} letters="zxcvbnm" isLast={true} />
       </div>
     );
   }
 
-  function KeyboardRow({ letters, isLast }) {
+  function KeyboardRow({ letters, isLast, bestColors }) {
     let buttons = [];
     if (isLast) {
       buttons.push(
@@ -196,7 +217,7 @@ export default function Wordle() {
 
     for (let letter of letters) {
       buttons.push(
-        <Button key={letter} buttonKey={letter}>
+        <Button key={letter} buttonKey={letter} color={bestColors.get(letter)}>
           {letter}
         </Button>
       );
@@ -213,13 +234,14 @@ export default function Wordle() {
     return <div>{buttons}</div>;
   }
 
-  function Button({ buttonKey, children }) {
+  function Button({ buttonKey, children, color = LIGHTGRAY }) {
     const handleKey = useContext(KeyContext);
 
     return (
       <button
         style={{
-          backgroundColor: LIGHTGRAY,
+          backgroundColor: color,
+          borderColor: color,
         }}
         onClick={() => handleKey(buttonKey)}
       >
@@ -257,5 +279,17 @@ export default function Wordle() {
     try {
       localStorage.setItem('data', JSON.stringify(data));
     } catch {}
+  }
+
+  function getBetterColor(a, b) {
+    if (a === GREEN || b === GREEN) {
+      return GREEN;
+    }
+
+    if (a === YELLOW || b === YELLOW) {
+      return YELLOW;
+    }
+
+    return GRAY;
   }
 }
