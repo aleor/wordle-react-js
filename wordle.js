@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
+import { KeyContext } from './context';
 
 export default function Wordle() {
   let [history, setHistory] = useState([]);
@@ -81,9 +82,11 @@ export default function Wordle() {
 
   return (
     <div id="screen">
-      <h1>Wordle</h1>
-      <Grid history={history} currentAttempt={currentAttempt} />
-      <Keyboard onKey={handleKey} />
+      <KeyContext.Provider value={handleKey}>
+        <h1>Wordle</h1>
+        <Grid history={history} currentAttempt={currentAttempt} />
+        <Keyboard />
+      </KeyContext.Provider>
     </div>
   );
 
@@ -152,21 +155,21 @@ export default function Wordle() {
     );
   }
 
-  function Keyboard({ onKey }) {
+  function Keyboard() {
     return (
       <div id="keyboard">
-        <KeyboardRow letters="qwertyuiop" onKey={onKey} isLast={false} />
-        <KeyboardRow letters="asdfghjkl" onKey={onKey} isLast={false} />
-        <KeyboardRow letters="zxcvbnm" onKey={onKey} isLast={true} />
+        <KeyboardRow letters="qwertyuiop" isLast={false} />
+        <KeyboardRow letters="asdfghjkl" isLast={false} />
+        <KeyboardRow letters="zxcvbnm" isLast={true} />
       </div>
     );
   }
 
-  function KeyboardRow({ letters, isLast, onKey }) {
+  function KeyboardRow({ letters, isLast }) {
     let buttons = [];
     if (isLast) {
       buttons.push(
-        <Button onKey={onKey} key="enter" buttonKey="Enter">
+        <Button key="enter" buttonKey="Enter">
           Enter
         </Button>
       );
@@ -174,7 +177,7 @@ export default function Wordle() {
 
     for (let letter of letters) {
       buttons.push(
-        <Button onKey={onKey} key={letter} buttonKey={letter}>
+        <Button key={letter} buttonKey={letter}>
           {letter}
         </Button>
       );
@@ -182,7 +185,7 @@ export default function Wordle() {
 
     if (isLast) {
       buttons.push(
-        <Button onKey={onKey} key="backspace" buttonKey="Backspace">
+        <Button key="backspace" buttonKey="Backspace">
           BkSpc
         </Button>
       );
@@ -191,13 +194,15 @@ export default function Wordle() {
     return <div>{buttons}</div>;
   }
 
-  function Button({ buttonKey, children, onKey }) {
+  function Button({ buttonKey, children }) {
+    const handleKey = useContext(KeyContext);
+
     return (
       <button
         style={{
           backgroundColor: LIGHTGRAY,
         }}
-        onClick={() => onKey(buttonKey)}
+        onClick={() => handleKey(buttonKey)}
       >
         {children}
       </button>
