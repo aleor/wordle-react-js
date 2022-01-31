@@ -1,14 +1,31 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import { KeyContext } from './context';
 
 export default function Wordle() {
   let [history, setHistory] = useState([]);
   let [currentAttempt, setCurrentAttempt] = useState('');
+  let loadedRef = useRef(false);
 
   useEffect(() => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   });
+
+  useEffect(() => {
+    if (loadedRef.current) {
+      return;
+    }
+
+    let savedHistory = loadHistory();
+    if (savedHistory) {
+      setHistory(savedHistory);
+      loadedRef.current = true;
+    }
+  });
+
+  useEffect(() => {
+    saveHistory(history);
+  }, [history]);
 
   let wordList = [
     'patio',
@@ -56,7 +73,6 @@ export default function Wordle() {
       }
 
       setHistory([...history, currentAttempt]);
-      // saveGame();
 
       if (currentAttempt === secret) {
         alert('You win!');
@@ -222,5 +238,21 @@ export default function Wordle() {
     }
 
     return YELLOW;
+  }
+
+  function loadHistory() {
+    let data;
+    try {
+      data = JSON.parse(localStorage.getItem('data'));
+    } catch {}
+
+    return data?.secret === secret ? data.history : [];
+  }
+
+  function saveHistory(history) {
+    let data = { secret, history };
+    try {
+      localStorage.setItem('data', JSON.stringify(data));
+    } catch {}
   }
 }
