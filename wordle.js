@@ -2,28 +2,10 @@ import { useState, useEffect, useContext, useRef, useMemo } from 'react';
 import { KeyContext } from './context';
 
 export default function Wordle() {
-  let [history, setHistory] = useState([]);
   let [currentAttempt, setCurrentAttempt] = useState('');
   let [bestColors, setBestColors] = useState(() => new Map());
-  let loadedRef = useRef(false);
+  let [history, setHistory] = usePersistedHistory((h) => waitForAnimation(h));
   let animatingRef = useRef(false);
-
-  useEffect(() => {
-    if (loadedRef.current) {
-      return;
-    }
-
-    loadedRef.current = true;
-    let savedHistory = loadHistory();
-    if (savedHistory) {
-      setHistory(savedHistory);
-      setBestColors(calculateBestColor(savedHistory));
-    }
-  });
-
-  useEffect(() => {
-    saveHistory(history);
-  }, [history]);
 
   useEffect(() => {
     window.addEventListener('keydown', onKeyDown);
@@ -59,7 +41,7 @@ export default function Wordle() {
     setTimeout(() => {
       animatingRef.current = false;
       setBestColors(calculateBestColor(nextHistory));
-    }, 2000);
+    }, 1500);
   }
 
   function onKeyDown(e) {
@@ -283,6 +265,18 @@ export default function Wordle() {
     return YELLOW;
   }
 
+  function getBetterColor(a, b) {
+    if (a === GREEN || b === GREEN) {
+      return GREEN;
+    }
+
+    if (a === YELLOW || b === YELLOW) {
+      return YELLOW;
+    }
+
+    return GRAY;
+  }
+
   function loadHistory() {
     let data;
     try {
@@ -299,15 +293,27 @@ export default function Wordle() {
     } catch {}
   }
 
-  function getBetterColor(a, b) {
-    if (a === GREEN || b === GREEN) {
-      return GREEN;
-    }
+  function usePersistedHistory(onLoad) {
+    let [history, setHistory] = useState([]);
+    let loadedRef = useRef(false);
 
-    if (a === YELLOW || b === YELLOW) {
-      return YELLOW;
-    }
+    useEffect(() => {
+      if (loadedRef.current) {
+        return;
+      }
 
-    return GRAY;
+      loadedRef.current = true;
+      let savedHistory = loadHistory();
+      if (savedHistory) {
+        setHistory(savedHistory);
+        onLoad(savedHistory);
+      }
+    });
+
+    useEffect(() => {
+      saveHistory(history);
+    }, [history]);
+
+    return [history, setHistory];
   }
 }
