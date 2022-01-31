@@ -4,7 +4,31 @@ import { KeyContext } from './context';
 export default function Wordle() {
   let [history, setHistory] = useState([]);
   let [currentAttempt, setCurrentAttempt] = useState('');
+  let [bestColors, setBestColors] = useState(() => new Map());
   let loadedRef = useRef(false);
+  let animatingRef = useRef(false);
+
+  useEffect(() => {
+    if (loadedRef.current) {
+      return;
+    }
+
+    loadedRef.current = true;
+    let savedHistory = loadHistory();
+    if (savedHistory) {
+      setHistory(savedHistory);
+      setBestColors(calculateBestColor(savedHistory));
+    }
+  });
+
+  useEffect(() => {
+    saveHistory(history);
+  }, [history]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
 
   let wordList = [
     'patio',
@@ -27,7 +51,26 @@ export default function Wordle() {
   let MIDDLEGREY = '#666';
   let BLACK = '#111';
 
-  let bestColors = useMemo(() => {
+  function waitForAnimation(nextHistory) {
+    if (animatingRef.current)
+      throw Error('Should not be called during animation');
+
+    animatingRef.current = true;
+    setTimeout(() => {
+      animatingRef.current = false;
+      setBestColors(calculateBestColor(nextHistory));
+    }, 2000);
+  }
+
+  function onKeyDown(e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      return;
+    }
+
+    handleKey(e.key);
+  }
+
+  function calculateBestColor(history) {
     let map = new Map();
     for (let attempt of history) {
       for (let i = 0; i < attempt.length; i++) {
@@ -38,39 +81,14 @@ export default function Wordle() {
       }
     }
     return map;
-  }, [history]);
-
-  useEffect(() => {
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  });
-
-  useEffect(() => {
-    if (loadedRef.current) {
-      return;
-    }
-
-    let savedHistory = loadHistory();
-    if (savedHistory) {
-      setHistory(savedHistory);
-      loadedRef.current = true;
-    }
-  });
-
-  useEffect(() => {
-    saveHistory(history);
-  }, [history]);
-
-  function onKeyDown(e) {
-    if (e.ctrlKey || e.metaKey || e.altKey) {
-      return;
-    }
-
-    handleKey(e.key);
   }
 
   function handleKey(key) {
     if (history.length === 6) {
+      return;
+    }
+
+    if (animatingRef.current) {
       return;
     }
 
@@ -94,7 +112,7 @@ export default function Wordle() {
       }
 
       setCurrentAttempt('');
-      // pauseInput();
+      waitForAnimation([...history, currentAttempt]);
     } else if (letter === 'backspace') {
       setCurrentAttempt(currentAttempt.slice(0, currentAttempt.length - 1));
     } else if (/^[a-z]$/.test(letter)) {
