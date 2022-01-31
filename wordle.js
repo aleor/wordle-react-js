@@ -87,7 +87,6 @@ export default function Wordle() {
     } else if (/^[a-z]$/.test(letter)) {
       if (currentAttempt.length < 5) {
         setCurrentAttempt(currentAttempt + letter);
-        //animatePress(currentAttempt.length - 1);
       }
     }
 
@@ -141,7 +140,11 @@ export default function Wordle() {
     );
 
     return (
-      <div className={'cell ' + (solved ? 'solved' : '')}>
+      <div
+        className={
+          'cell' + (solved ? ' solved ' : '') + (hasLetter ? ' filled' : '')
+        }
+      >
         <div
           className="surface"
           style={{
